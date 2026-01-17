@@ -1,0 +1,25 @@
+# Binaries and Large Files
+*.exe
+*.dll
+*.iso
+*.tar
+*.gz
+*.zip
+*.7z
+*.rar
+*.msi
+
+# FFmpeg specific
+ffmpeg-master-latest-win64-gpl/
+ffmpeg/
+bin/
+
+# Project specific binaries
+yt-dlp.exe
+yt-downloader.exe
+ffmpeg.exe
+
+# Logs and System
+*.log
+.DS_Store
+Thumbs.db
