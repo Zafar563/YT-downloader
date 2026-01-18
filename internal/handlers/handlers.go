@@ -118,7 +118,7 @@ func StartDownload(c *gin.Context) {
                     }
                 }()
 
-				downloader.DownloadVideo(vID, u, outputDir, progressChan)
+				downloader.DownloadVideo(vID, u, req.Format, outputDir, progressChan)
 			}(url, videoID)
 		}
 		wg.Wait()

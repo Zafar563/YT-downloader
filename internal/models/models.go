@@ -26,7 +26,8 @@ type Playlist struct {
 
 // DownloadRequest represents the request payload for downloading videos
 type DownloadRequest struct {
-	URLs []string `json:"urls"`
+	URLs   []string `json:"urls"`
+	Format string   `json:"format"` // "mp3" or "video"
 }
 
 // DownloadProgress represents the progress update sent via WebSocket

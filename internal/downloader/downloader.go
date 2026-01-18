@@ -59,11 +59,11 @@ func GetPlaylistInfo(url string) (*models.Playlist, error) {
 }
 
 // DownloadVideo downloads a video and sends progress updates
-func DownloadVideo(videoID string, url string, outputDir string, progressChan chan<- models.DownloadProgress) {
+func DownloadVideo(videoID string, url string, format string, outputDir string, progressChan chan<- models.DownloadProgress) {
     defer close(progressChan)
 
-    // Output template to save in downloads folder
-    outputPath := fmt.Sprintf("%s/%%(title)s.%%(ext)s", outputDir)
+    // Output template to save in downloads folder - include ID to avoid collisions/locking
+    outputPath := fmt.Sprintf("%s/%%(title)s [%%(id)s].%%(ext)s", outputDir)
 
     // Command to download
     // --newline forces progress to be printed on new lines for easier parsing
@@ -73,7 +73,13 @@ func DownloadVideo(videoID string, url string, outputDir string, progressChan ch
         exePath = "yt-dlp"
     }
 
-    cmd := exec.Command(exePath, "-x", "--audio-format", "mp3", "-o", outputPath, "--newline", "--no-warnings", url)
+    var cmd *exec.Cmd
+    if format == "mp3" {
+        cmd = exec.Command(exePath, "-x", "--audio-format", "mp3", "-o", outputPath, "--newline", "--no-warnings", url)
+    } else {
+        // Default to video (best video+best audio is default behavior of yt-dlp)
+        cmd = exec.Command(exePath, "-o", outputPath, "--newline", "--no-warnings", url)
+    }
 
     stdout, err := cmd.StdoutPipe()
     if err != nil {
