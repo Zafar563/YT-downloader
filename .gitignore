@@ -9,6 +9,9 @@
 *.rar
 *.msi
 
+# Downloaded files
+/downloads
+
 # FFmpeg specific
 ffmpeg-master-latest-win64-gpl/
 ffmpeg/
@@ -23,3 +26,6 @@ ffmpeg.exe
 *.log
 .DS_Store
 Thumbs.db
+
+# Generated Files
+downloads/
