@@ -12,6 +12,7 @@ function App() {
   const [selected, setSelected] = useState(new Set());
   const [format, setFormat] = useState('video'); // 'video' or 'mp3'
   const [progress, setProgress] = useState({}); // { videoId: { status, percent, message } }
+  const [selectCount, setSelectCount] = useState(''); // New state for input number
   const wsRef = useRef(null);
 
   // Initialize WebSocket
@@ -59,6 +60,26 @@ function App() {
     } else {
       newSelected.add(id);
     }
+    setSelected(newSelected);
+  };
+
+  const selectFirstN = () => {
+    const n = parseInt(selectCount, 10);
+    if (isNaN(n) || n <= 0) {
+      alert('Please enter a valid number');
+      return;
+    }
+
+    if (!playlist || !playlist.entries) return;
+
+    const newSelected = new Set();
+    const limit = Math.min(n, playlist.entries.length);
+
+    for (let i = 0; i < limit; i++) {
+      const v = playlist.entries[i];
+      newSelected.add(v.id || v.url || v.webpage_url);
+    }
+
     setSelected(newSelected);
   };
 
@@ -110,17 +131,37 @@ function App() {
           <div className="playlist-info">
             <h2>{playlist.title || "Unknown Playlist"}</h2>
             <p>{playlist.entries.length} videos found</p>
-            <button
-              onClick={() => {
-                if (selected.size === playlist.entries.length) setSelected(new Set());
-                else setSelected(new Set(playlist.entries.map(v => v.id || v.url || v.webpage_url)));
-              }}
-              style={{ background: 'transparent', padding: '0', color: 'var(--accent)', textDecoration: 'underline' }}
-            >
-              {selected.size === playlist.entries.length ? 'Deselect All' : 'Select All'}
-            </button>
 
-            <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
+              <button
+                onClick={() => {
+                  if (selected.size === playlist.entries.length) setSelected(new Set());
+                  else setSelected(new Set(playlist.entries.map(v => v.id || v.url || v.webpage_url)));
+                }}
+                style={{ background: 'transparent', padding: '0', color: 'var(--accent)', textDecoration: 'underline' }}
+              >
+                {selected.size === playlist.entries.length ? 'Deselect All' : 'Select All'}
+              </button>
+
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginLeft: 'auto' }}>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Select N..."
+                  value={selectCount}
+                  onChange={(e) => setSelectCount(e.target.value)}
+                  style={{ width: '100px', padding: '0.5rem', background: '#333', border: '1px solid #444', color: '#fff', borderRadius: '4px' }}
+                />
+                <button
+                  onClick={selectFirstN}
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                >
+                  Select First
+                </button>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
               <span style={{ color: 'var(--text-sec)' }}>Format:</span>
               <button
                 onClick={() => setFormat('video')}
