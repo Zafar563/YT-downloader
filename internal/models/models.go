@@ -32,8 +32,9 @@ type DownloadRequest struct {
 
 // DownloadProgress represents the progress update sent via WebSocket
 type DownloadProgress struct {
-    VideoID string  `json:"video_id"`
-    Status  string  `json:"status"` // "downloading", "finished", "error"
-    Percent float64 `json:"percent"`
-    Message string  `json:"message,omitempty"`
+    VideoID     string  `json:"video_id"`
+    Status      string  `json:"status"` // "downloading", "finished", "error"
+    Percent     float64 `json:"percent"`
+    Message     string  `json:"message,omitempty"`
+    DownloadURL string  `json:"download_url,omitempty"`
 }

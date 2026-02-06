@@ -4,7 +4,9 @@ import (
 	"net/http"
 	"path/filepath"
 	"sync"
-    "fmt"
+	"fmt"
+    "regexp"
+
 
 	"github.com/example/yt-downloader/internal/downloader"
 	"github.com/example/yt-downloader/internal/models"
@@ -97,13 +99,15 @@ func StartDownload(c *gin.Context) {
 			sem <- struct{}{}
 			wg.Add(1)
             
-            // Extract Video ID from URL (naive approach, better pass ID from frontend)
-            // assuming url is https://www.youtube.com/watch?v=VIDEO_ID
-            // For now, let's use the URL as ID for progress tracking if ID not available, 
-            // but the frontend should ideally pass IDs. Let's assume the frontend passes full URLs.
-            // A better way is to pass Video objects. 
-            // Let's generate a temporary ID or use the URL as key.
-            videoID := url 
+            // Extract Video ID from URL
+            var videoID string
+            regex := regexp.MustCompile(`(?:v=|/)([0-9A-Za-z_-]{11}).*`)
+            matches := regex.FindStringSubmatch(url)
+            if len(matches) > 1 {
+                videoID = matches[1]
+            } else {
+                videoID = url // Fallback to URL if extraction fails
+            } 
 
 			go func(u string, vID string) {
 				defer wg.Done()
@@ -126,4 +130,36 @@ func StartDownload(c *gin.Context) {
 	}(req.URLs)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Download started", "count": len(req.URLs)})
+}
+
+// StreamDownload handles direct streaming request
+func StreamDownload(c *gin.Context) {
+    url := c.Query("url")
+    format := c.Query("format")
+    title := c.Query("title")
+
+    if url == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "URL is required"})
+        return
+    }
+
+    // Set headers for download
+    filename := fmt.Sprintf("%s.mp4", title)
+    contentType := "video/mp4"
+    if format == "mp3" {
+        filename = fmt.Sprintf("%s.mp3", title)
+        contentType = "audio/mpeg"
+    }
+
+    // Sanitize filename (basic)
+    filename = filepath.Base(filename) 
+
+    c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+    c.Header("Content-Type", contentType)
+
+    err := downloader.StreamVideo(url, format, c.Writer)
+    if err != nil {
+        // Can't write JSON error if headers already sent, but we can log
+        fmt.Println("Streaming error:", err)
+    }
 }

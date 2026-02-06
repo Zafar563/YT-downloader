@@ -86,18 +86,25 @@ function App() {
   const startDownload = async () => {
     if (selected.size === 0) return;
 
-    // Convert Set to Array of URLs
-    // We need to find the full URL for each ID from the playlist entries
-    const urlsToDownload = playlist.entries
-      .filter(v => selected.has(v.id || v.url || v.webpage_url))
-      .map(v => v.webpage_url || v.url); // yt-dlp flat playlist uses 'url' or 'webpage_url'
+    // Convert Set to Array of needed data
+    const selectedVideos = playlist.entries.filter(v =>
+      selected.has(v.id || v.url || v.webpage_url)
+    );
 
-    try {
-      await axios.post(`${API_BASE}/download`, { urls: urlsToDownload, format });
-      alert('Download started!');
-    } catch (err) {
-      alert('Failed to start download');
-    }
+    // Trigger download for each selected video
+    // Use hidden anchor tag to avoid opening new windows
+    selectedVideos.forEach(video => {
+      const videoUrl = video.webpage_url || video.url;
+      const title = encodeURIComponent(video.title || 'video');
+      const downloadLink = `${API_BASE}/stream?url=${encodeURIComponent(videoUrl)}&title=${title}&format=${format}`;
+
+      const link = document.createElement('a');
+      link.href = downloadLink;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
   };
 
   const formatDuration = (seconds) => {
@@ -228,6 +235,26 @@ function App() {
                         <div className="status-text">
                           <span>{vidProgress.status === 'finished' ? 'Completed' : (vidProgress.status === 'error' ? 'Error' : `${vidProgress.percent.toFixed(1)}%`)}</span>
                           {vidProgress.message && <span style={{ color: '#ff5555' }}>{vidProgress.message}</span>}
+                          {vidProgress.status === 'finished' && vidProgress.download_url && (
+                            <a
+                              href={`http://localhost:8080${vidProgress.download_url}`}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                marginLeft: '10px',
+                                background: 'var(--accent)',
+                                color: '#000',
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                textDecoration: 'none',
+                                fontSize: '0.8rem',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              Download File
+                            </a>
+                          )}
                         </div>
                       </div>
                     )}

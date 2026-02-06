@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+    "io"
     "os"
 	"os/exec"
 	"regexp"
@@ -134,6 +135,44 @@ func DownloadVideo(videoID string, url string, format string, outputDir string, 
          fmt.Println("Stderr Output:", stderrOut.String()) // Print captured stderr
          progressChan <- models.DownloadProgress{VideoID: videoID, Status: "error", Message: "Download failed: " + stderrOut.String()}
     } else {
-         progressChan <- models.DownloadProgress{VideoID: videoID, Status: "finished", Percent: 100}
+         // Find the file to get the correct extension/name
+         // yt-dlp puts the ID in brackets as per our template: [VIDEO_ID]
+         files, _ := os.ReadDir(outputDir)
+         
+         var finalPath string
+         for _, f := range files {
+             if !f.IsDir() && strings.Contains(f.Name(), "["+videoID+"]") {
+                 finalPath = f.Name()
+                 break
+             }
+         }
+         
+         if finalPath != "" {
+             downloadURL := fmt.Sprintf("/downloads/%s", finalPath)
+             progressChan <- models.DownloadProgress{VideoID: videoID, Status: "finished", Percent: 100, DownloadURL: downloadURL}
+         } else {
+             progressChan <- models.DownloadProgress{VideoID: videoID, Status: "finished", Percent: 100}
+         }
     }
+}
+
+// StreamVideo streams the video directly to the writer
+func StreamVideo(url string, format string, writer io.Writer) error {
+    exePath := "./yt-dlp.exe"
+    if _, err := os.Stat(exePath); os.IsNotExist(err) {
+        exePath = "yt-dlp"
+    }
+
+    var cmd *exec.Cmd
+    if format == "mp3" {
+        // -o - directs output to stdout
+        cmd = exec.Command(exePath, "-x", "--audio-format", "mp3", "-o", "-", "--no-warnings", url)
+    } else {
+        cmd = exec.Command(exePath, "-o", "-", "--no-warnings", url)
+    }
+
+    cmd.Stdout = writer
+    cmd.Stderr = os.Stderr // Pipe stderr to server logs for debugging
+
+    return cmd.Run()
 }

@@ -28,9 +28,11 @@ func main() {
 	{
 		api.POST("/playlist/info", handlers.GetPlaylist)
 		api.POST("/download", handlers.StartDownload)
+        api.GET("/stream", handlers.StreamDownload) // New streaming endpoint
 	}
 
 	r.GET("/ws", handlers.WSHandler)
+	r.Static("/downloads", "./downloads")
 
 	// Background Cleanup Task
 	go func() {
