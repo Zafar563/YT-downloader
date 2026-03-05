@@ -33,8 +33,32 @@ body {
 }
 
 .header {
-  text-align: center;
   margin-bottom: 2rem;
+  text-align: center;
+  border-bottom: 1px solid #333;
+  padding-bottom: 1rem;
+}
+
+.ws-status {
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: bold;
+}
+
+.ws-status.connected {
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.ws-status.connecting {
+  color: #ffeb3b;
+  background: rgba(255, 235, 59, 0.1);
+}
+
+.ws-status.offline {
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
 }
 
 .header h1 {
@@ -120,7 +144,7 @@ button:disabled {
 
 .video-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
   border-color: rgba(187, 134, 252, 0.3);
 }
 
@@ -139,7 +163,7 @@ button:disabled {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0, 0, 0, 0.8);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.8rem;
@@ -185,7 +209,7 @@ input[type="checkbox"] {
 }
 
 .progress-bar-bg {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   height: 6px;
   border-radius: 3px;
   overflow: hidden;

@@ -19,9 +19,9 @@ func GetPlaylistInfo(url string) (*models.Playlist, error) {
 	// --flat-playlist is much faster for large playlists as it doesn't extract full info for every video immediately
     // --dump-single-json outputs the result as a single JSON object
 	// Use local yt-dlp.exe if available, or assume it's in PATH
-    exePath := "./yt-dlp.exe"
+    exePath := "./yt-dlp"
     if _, err := os.Stat(exePath); os.IsNotExist(err) {
-        exePath = "yt-dlp"
+        exePath = "yt-dlp" // Use system yt-dlp if local one doesn't exist (useful for Docker)
     }
     
 	cmd := exec.Command(exePath, "--dump-single-json", "--flat-playlist", "--no-warnings", url)
@@ -69,7 +69,7 @@ func DownloadVideo(videoID string, url string, format string, outputDir string, 
     // Command to download
     // --newline forces progress to be printed on new lines for easier parsing
     // --progress-template prints custom progress format
-    exePath := "./yt-dlp.exe"
+    exePath := "./yt-dlp"
     if _, err := os.Stat(exePath); os.IsNotExist(err) {
         exePath = "yt-dlp"
     }
@@ -158,7 +158,7 @@ func DownloadVideo(videoID string, url string, format string, outputDir string, 
 
 // StreamVideo streams the video directly to the writer
 func StreamVideo(url string, format string, writer io.Writer) error {
-    exePath := "./yt-dlp.exe"
+    exePath := "./yt-dlp"
     if _, err := os.Stat(exePath); os.IsNotExist(err) {
         exePath = "yt-dlp"
     }

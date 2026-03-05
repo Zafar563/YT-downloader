@@ -13,25 +13,55 @@ function App() {
   const [format, setFormat] = useState('video'); // 'video' or 'mp3'
   const [progress, setProgress] = useState({}); // { videoId: { status, percent, message } }
   const [selectCount, setSelectCount] = useState(''); // New state for input number
+  const [wsStatus, setWsStatus] = useState('connecting'); // 'connecting', 'connected', 'offline'
   const wsRef = useRef(null);
 
   // Initialize WebSocket
   useEffect(() => {
-    wsRef.current = new WebSocket(WS_URL);
+    let reconnectTimer;
 
-    wsRef.current.onopen = () => console.log('WS Connected');
-    wsRef.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      // data = { video_id, status, percent, message }
-      console.log("WS Data:", data);
-      setProgress(prev => ({
-        ...prev,
-        [data.video_id]: data
-      }));
+    const connect = () => {
+      console.log('Attempting WS Connection...');
+      const ws = new WebSocket(WS_URL);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('WS Connected');
+        setWsStatus('connected');
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log("WS Data:", data);
+        setProgress(prev => ({
+          ...prev,
+          [data.video_id]: data
+        }));
+      };
+
+      ws.onclose = () => {
+        console.log('WS Disconnected');
+        setWsStatus('offline');
+        // Try to reconnect after 3 seconds
+        reconnectTimer = setTimeout(connect, 3000);
+      };
+
+      ws.onerror = (err) => {
+        console.error('WS Error:', err);
+        ws.close();
+      };
     };
 
+    connect();
+
     return () => {
-      if (wsRef.current) wsRef.current.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (wsRef.current) {
+        // Only close if it's not already in closing or closed state
+        if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+          wsRef.current.close();
+        }
+      }
     };
   }, []);
 
@@ -116,9 +146,11 @@ function App() {
 
   return (
     <div className="container">
-      <header className="header">
+      <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>YT Downloader</h1>
-        <p>Ultra-fast playlist downloader powered by Go & yt-dlp</p>
+        <div className={`ws-status ${wsStatus}`} title={`WebSocket: ${wsStatus}`}>
+          {wsStatus === 'connected' ? '● Online' : (wsStatus === 'connecting' ? '○ Connecting...' : '● Offline')}
+        </div>
       </header>
 
       <div className="input-group">
