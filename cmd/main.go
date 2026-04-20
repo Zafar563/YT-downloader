@@ -25,12 +25,9 @@ func main() {
 	api := r.Group("/api")
 	{
 		api.POST("/playlist/info", handlers.GetPlaylist)
-		api.POST("/download", handlers.StartDownload)
-		api.GET("/stream", handlers.StreamDownload) // New streaming endpoint
+		api.GET("/stream", handlers.StreamDownload) // Direct streaming endpoint
 	}
 
-	r.GET("/ws", handlers.WSHandler)
-	r.Static("/downloads", "./downloads")
 	log.Println("Server starting on :8080...")
 	if err := r.Run(":8080"); err != nil {
 		log.Fatal("Failed to run server:", err)

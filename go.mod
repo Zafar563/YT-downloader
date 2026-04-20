@@ -1,11 +1,10 @@
 module github.com/example/yt-downloader
 
-go 1.25.0
+go 1.23.0
 
 require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
-	github.com/gorilla/websocket v1.5.3
 )
 
 require (

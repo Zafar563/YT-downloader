@@ -24,17 +24,3 @@ type Playlist struct {
 	Entries []Video `json:"entries"`
 }
 
-// DownloadRequest represents the request payload for downloading videos
-type DownloadRequest struct {
-	URLs   []string `json:"urls"`
-	Format string   `json:"format"` // "mp3" or "video"
-}
-
-// DownloadProgress represents the progress update sent via WebSocket
-type DownloadProgress struct {
-	VideoID     string  `json:"video_id"`
-	Status      string  `json:"status"` // "downloading", "finished", "error"
-	Percent     float64 `json:"percent"`
-	Message     string  `json:"message,omitempty"`
-	DownloadURL string  `json:"download_url,omitempty"`
-}

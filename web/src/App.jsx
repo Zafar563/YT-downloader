@@ -3,7 +3,6 @@ import axios from 'axios';
 import './index.css';
 
 const API_BASE = 'http://localhost:8080/api';
-const WS_URL = 'ws://localhost:8080/ws';
 
 function App() {
   const [url, setUrl] = useState('');
@@ -11,59 +10,9 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [format, setFormat] = useState('video'); // 'video' or 'mp3'
-  const [progress, setProgress] = useState({}); // { videoId: { status, percent, message } }
+  const [quality, setQuality] = useState('best'); // 'best', '1080p', '720p', etc.
   const [selectCount, setSelectCount] = useState(''); // New state for input number
-  const [wsStatus, setWsStatus] = useState('connecting'); // 'connecting', 'connected', 'offline'
-  const wsRef = useRef(null);
 
-  // Initialize WebSocket
-  useEffect(() => {
-    let reconnectTimer;
-
-    const connect = () => {
-      console.log('Attempting WS Connection...');
-      const ws = new WebSocket(WS_URL);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log('WS Connected');
-        setWsStatus('connected');
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log("WS Data:", data);
-        setProgress(prev => ({
-          ...prev,
-          [data.video_id]: data
-        }));
-      };
-
-      ws.onclose = () => {
-        console.log('WS Disconnected');
-        setWsStatus('offline');
-        // Try to reconnect after 3 seconds
-        reconnectTimer = setTimeout(connect, 3000);
-      };
-
-      ws.onerror = (err) => {
-        console.error('WS Error:', err);
-        ws.close();
-      };
-    };
-
-    connect();
-
-    return () => {
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (wsRef.current) {
-        // Only close if it's not already in closing or closed state
-        if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
-          wsRef.current.close();
-        }
-      }
-    };
-  }, []);
 
   const fetchPlaylist = async () => {
     if (!url) return;
@@ -126,7 +75,7 @@ function App() {
     selectedVideos.forEach(video => {
       const videoUrl = video.webpage_url || video.url;
       const title = encodeURIComponent(video.title || 'video');
-      const downloadLink = `${API_BASE}/stream?url=${encodeURIComponent(videoUrl)}&title=${title}&format=${format}`;
+      const downloadLink = `${API_BASE}/stream?url=${encodeURIComponent(videoUrl)}&title=${title}&format=${format}&quality=${quality}`;
 
       const link = document.createElement('a');
       link.href = downloadLink;
@@ -148,9 +97,6 @@ function App() {
     <div className="container">
       <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>YT Downloader</h1>
-        <div className={`ws-status ${wsStatus}`} title={`WebSocket: ${wsStatus}`}>
-          {wsStatus === 'connected' ? '● Online' : (wsStatus === 'connecting' ? '○ Connecting...' : '● Offline')}
-        </div>
       </header>
 
       <div className="input-group">
@@ -223,14 +169,38 @@ function App() {
                 MP3 Audio
               </button>
             </div>
+
+            {format === 'video' && (
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-sec)' }}>Quality:</span>
+                <select
+                  value={quality}
+                  onChange={(e) => setQuality(e.target.value)}
+                  style={{
+                    padding: '0.5rem',
+                    background: '#333',
+                    border: '1px solid var(--primary)',
+                    color: '#fff',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="best">Best Quality</option>
+                  <option value="2160p">4K (2160p)</option>
+                  <option value="1440p">2K (1440p)</option>
+                  <option value="1080p">1080p</option>
+                  <option value="720p">720p</option>
+                  <option value="480p">480p</option>
+                  <option value="360p">360p</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="video-grid">
             {playlist.entries.map((video, idx) => {
               // Fallback ID handling
               const vId = video.id || video.url || video.webpage_url || `vid-${idx}`;
-              const vidProgress = progress[video.url] || progress[vId] || progress[video.webpage_url]; // Match by URL or ID used in backend
-
               return (
                 <div key={vId} className="video-card">
                   <div className="thumbnail-wrapper">
@@ -255,41 +225,6 @@ function App() {
 
                   <div className="card-content">
                     <h3 className="video-title" title={video.title}>{video.title || "Untitled Video"}</h3>
-
-                    {vidProgress && (
-                      <div className="progress-container">
-                        <div className="progress-bar-bg">
-                          <div
-                            className="progress-bar-fill"
-                            style={{ width: `${vidProgress.percent}%`, background: vidProgress.status === 'error' ? '#ff5555' : 'var(--accent)' }}
-                          ></div>
-                        </div>
-                        <div className="status-text">
-                          <span>{vidProgress.status === 'finished' ? 'Completed' : (vidProgress.status === 'error' ? 'Error' : `${vidProgress.percent.toFixed(1)}%`)}</span>
-                          {vidProgress.message && <span style={{ color: '#ff5555' }}>{vidProgress.message}</span>}
-                          {vidProgress.status === 'finished' && vidProgress.download_url && (
-                            <a
-                              href={`http://localhost:8080${vidProgress.download_url}`}
-                              download
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                marginLeft: '10px',
-                                background: 'var(--accent)',
-                                color: '#000',
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                textDecoration: 'none',
-                                fontSize: '0.8rem',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              Download File
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )

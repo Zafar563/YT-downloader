@@ -9,8 +9,7 @@
 *.rar
 *.msi
 
-# Downloaded files
-/downloads
+
 
 # FFmpeg specific
 ffmpeg-master-latest-win64-gpl/
@@ -20,11 +19,8 @@ bin/
 
 # Project specific binaries
 yt-dlp
-yt-dlp.exe
 yt-downloader
-yt-downloader.exe
 ffmpeg
-ffmpeg.exe
 ffprobe
 
 
@@ -33,5 +29,3 @@ ffprobe
 .DS_Store
 Thumbs.db
 
-# Generated Files
-downloads/

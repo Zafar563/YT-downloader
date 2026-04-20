@@ -1,0 +1,13 @@
+yt-dlp
+yt-dlp.exe
+ffmpeg
+ffmpeg.exe
+ffprobe
+ffprobe.exe
+yt-downloader
+yt-downloader.exe
+downloads/
+.git/
+.idea/
+web/node_modules/
+backend/bin/
