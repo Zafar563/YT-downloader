@@ -26,16 +26,32 @@ func getYTdlpPath() string {
     return "yt-dlp" // Assume it's in PATH if all else fails
 }
 
+func getCookiesArgs() []string {
+    cookiesPath := "/app/cookies.txt"
+    if _, err := os.Stat(cookiesPath); err == nil {
+        return []string{"--cookies", cookiesPath}
+    }
+    // Fallback for local development
+    if _, err := os.Stat("./cookies.txt"); err == nil {
+        return []string{"--cookies", "./cookies.txt"}
+    }
+    return nil
+}
+
 // GetPlaylistInfo fetches metadata for a playlist or video
 func GetPlaylistInfo(url string) (*models.Playlist, error) {
     exePath := getYTdlpPath()
     
-	cmd := exec.Command(exePath, 
-        "--dump-single-json", 
-        "--flat-playlist", 
-        "--no-warnings", 
-        "--extractor-args", "youtube:player_client=android,web",
-        url)
+	args := []string{
+		"--dump-single-json",
+		"--flat-playlist",
+		"--no-warnings",
+		"--extractor-args", "youtube:player_client=android,web",
+	}
+	args = append(args, getCookiesArgs()...)
+	args = append(args, url)
+
+	cmd := exec.Command(exePath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute yt-dlp (%s): %w, output: %s", exePath, err, string(output))
@@ -75,20 +91,54 @@ func GetPlaylistInfo(url string) (*models.Playlist, error) {
 func StreamVideo(url string, format string, quality string, writer io.Writer) error {
     exePath := getYTdlpPath()
 
-    var cmd *exec.Cmd
-    if format == "mp3" {
-        // -o - directs output to stdout
-        cmd = exec.Command(exePath, "-x", "--audio-format", "mp3", "-o", "-", "--no-warnings", "--extractor-args", "youtube:player_client=android,web", url)
-    } else {
-        formatArgs := "bestvideo+bestaudio/best"
-        if quality != "" && quality != "best" {
-            formatArgs = fmt.Sprintf("bestvideo[height<=?%s]+bestaudio/best", strings.TrimSuffix(quality, "p"))
-        }
-        cmd = exec.Command(exePath, "-f", formatArgs, "-o", "-", "--no-warnings", "--extractor-args", "youtube:player_client=android,web", url)
-    }
+	var args []string
+	if format == "mp3" {
+		// yt-dlp ignores -x and --audio-format when streaming to stdout (-o -), 
+		// so we just request the best audio stream
+		args = []string{"-f", "bestaudio[ext=m4a]/bestaudio/best", "-o", "-", "--no-warnings"}
+	} else {
+		formatArgs := "bestvideo+bestaudio/best"
+		if quality != "" && quality != "best" {
+			height := strings.TrimSuffix(quality, "p")
+			formatArgs = fmt.Sprintf("bestvideo[height<=?%s]+bestaudio/best[height<=?%s]/best", height, height)
+		}
+		args = []string{"-f", formatArgs, "-o", "-", "--no-warnings"}
+	}
+	args = append(args, "--extractor-args", "youtube:player_client=android,web")
+	args = append(args, getCookiesArgs()...)
+	args = append(args, url)
+
+	cmd := exec.Command(exePath, args...)
 
     cmd.Stdout = writer
     cmd.Stderr = os.Stderr // Pipe stderr to server logs for debugging
 
     return cmd.Run()
 }
+
+// DownloadToPath downloads the video/audio to a specific file path
+func DownloadToPath(url string, format string, quality string, outputPath string) error {
+    exePath := getYTdlpPath()
+
+	var args []string
+	if format == "mp3" {
+		// Download best audio first to save bandwidth, then convert to mp3
+		args = []string{"-f", "bestaudio/best", "-x", "--audio-format", "mp3", "-o", outputPath, "--no-warnings"}
+	} else {
+		formatArgs := "bestvideo+bestaudio/best"
+		if quality != "" && quality != "best" {
+			height := strings.TrimSuffix(quality, "p")
+			formatArgs = fmt.Sprintf("bestvideo[height<=?%s]+bestaudio/best[height<=?%s]/best", height, height)
+		}
+		args = []string{"-f", formatArgs, "-o", outputPath, "--no-warnings"}
+	}
+	args = append(args, "--extractor-args", "youtube:player_client=android,web")
+	args = append(args, getCookiesArgs()...)
+	args = append(args, url)
+
+	cmd := exec.Command(exePath, args...)
+
+    cmd.Stderr = os.Stderr
+    return cmd.Run()
+}
+

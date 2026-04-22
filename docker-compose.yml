@@ -7,6 +7,9 @@ services:
       - "8080:8080"
     volumes:
       - ./downloads:/app/downloads
+      - ./cookies.txt:/app/cookies.txt
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     restart: unless-stopped
 
   frontend:

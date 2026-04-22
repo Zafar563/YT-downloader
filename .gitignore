@@ -4,11 +4,11 @@
 *.iso
 *.tar
 *.gz
-*.zip
+*.zip   
 *.7z
 *.rar
 *.msi
-
+.env
 
 
 # FFmpeg specific
@@ -22,6 +22,8 @@ yt-dlp
 yt-downloader
 ffmpeg
 ffprobe
+.downloads
+cookies.txt
 
 
 # Logs and System
