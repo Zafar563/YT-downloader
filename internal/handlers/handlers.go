@@ -3,7 +3,9 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/example/yt-downloader/internal/downloader"
 	"github.com/gin-gonic/gin"
@@ -14,7 +16,7 @@ import (
 func GetPlaylist(c *gin.Context) {
 	var req struct {
 		URL string `json:"url"`
-	}
+	}	
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -43,23 +45,39 @@ func StreamDownload(c *gin.Context) {
 		return
 	}
 
-	// Set headers for download
-	filename := fmt.Sprintf("%s.mp4", title)
-	contentType := "video/mp4"
 	if format == "mp3" {
-		filename = fmt.Sprintf("%s.mp3", title)
-		contentType = "audio/mpeg"
+		// Download to a temporary file on the server, convert, and then send it
+		tempFileName := fmt.Sprintf("yt_%d.mp3", time.Now().UnixNano())
+		tempPath := filepath.Join(os.TempDir(), tempFileName)
+
+		// Remove the temp file after we are done
+		defer os.Remove(tempPath)
+
+		err := downloader.DownloadToPath(url, format, quality, tempPath)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download and convert: " + err.Error()})
+			return
+		}
+
+		filename := fmt.Sprintf("%s.mp3", title)
+		filename = filepath.Base(filename)
+
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+		c.Header("Content-Type", "audio/mpeg")
+		
+		c.File(tempPath)
+		return
 	}
 
-	// Sanitize filename (basic)
+	// For video, we can stream directly
+	filename := fmt.Sprintf("%s.mp4", title)
 	filename = filepath.Base(filename)
 
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
-	c.Header("Content-Type", contentType)
+	c.Header("Content-Type", "video/mp4")
 
 	err := downloader.StreamVideo(url, format, quality, c.Writer)
 	if err != nil {
-		// Can't write JSON error if headers already sent, but we can log
 		fmt.Println("Streaming error:", err)
 	}
 }
