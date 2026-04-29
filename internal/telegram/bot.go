@@ -112,7 +112,7 @@ func (b *Bot) handleCallback(query *tgbotapi.CallbackQuery) {
 	tempDir := "/app/downloads"
 	if _, err := os.Stat(tempDir); os.IsNotExist(err) {
 		tempDir = "./downloads" // Fallback for local dev
-		os.MkdirAll(tempDir, 0755)
+		os.MkdirAll(tempDir, 0777)
 	}
 
 	ext := "mp4"

@@ -46,7 +46,6 @@ func GetPlaylistInfo(url string) (*models.Playlist, error) {
 		"--dump-single-json",
 		"--flat-playlist",
 		"--no-warnings",
-		"--extractor-args", "youtube:player_client=android,web",
 	}
 	args = append(args, getCookiesArgs()...)
 	args = append(args, url)
@@ -54,7 +53,7 @@ func GetPlaylistInfo(url string) (*models.Playlist, error) {
 	cmd := exec.Command(exePath, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute yt-dlp (%s): %w, output: %s", exePath, err, string(output))
+		return nil, fmt.Errorf("failed to execute yt-dlp: %w\nCommand: %s %s\nOutput: %s", err, exePath, strings.Join(args, " "), string(output))
 	}
 
 	var result models.Playlist
@@ -104,7 +103,6 @@ func StreamVideo(url string, format string, quality string, writer io.Writer) er
 		}
 		args = []string{"-f", formatArgs, "-o", "-", "--no-warnings"}
 	}
-	args = append(args, "--extractor-args", "youtube:player_client=android,web")
 	args = append(args, getCookiesArgs()...)
 	args = append(args, url)
 
@@ -132,7 +130,6 @@ func DownloadToPath(url string, format string, quality string, outputPath string
 		}
 		args = []string{"-f", formatArgs, "-o", outputPath, "--no-warnings"}
 	}
-	args = append(args, "--extractor-args", "youtube:player_client=android,web")
 	args = append(args, getCookiesArgs()...)
 	args = append(args, url)
 
