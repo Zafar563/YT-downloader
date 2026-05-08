@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,6 +37,17 @@ func getCookiesArgs() []string {
         return []string{"--cookies", "./cookies.txt"}
     }
     return nil
+}
+
+// getCommonArgs returns arguments shared by all yt-dlp invocations.
+// Forces the web player client to avoid the degraded TV client that only
+// serves muxed streams with a limited format list.
+func getCommonArgs() []string {
+    return []string{
+        "--no-warnings",
+        "--extractor-args", "youtube:player_client=web,default",
+        "--no-check-certificates",
+    }
 }
 
 // GetPlaylistInfo fetches metadata for a playlist or video
@@ -94,24 +106,29 @@ func StreamVideo(url string, format string, quality string, writer io.Writer) er
 	if format == "mp3" {
 		// yt-dlp ignores -x and --audio-format when streaming to stdout (-o -), 
 		// so we just request the best audio stream
-		args = []string{"-f", "bestaudio[ext=m4a]/bestaudio/best", "-o", "-", "--no-warnings"}
+		args = []string{"-f", "bestaudio[ext=m4a]/bestaudio/best", "-o", "-"}
 	} else {
-		formatArgs := "bestvideo+bestaudio/best"
+		formatArgs := "bestvideo+bestaudio/bestvideo/best"
 		if quality != "" && quality != "best" {
 			height := strings.TrimSuffix(quality, "p")
-			formatArgs = fmt.Sprintf("bestvideo[height<=?%s]+bestaudio/best[height<=?%s]/best", height, height)
+			formatArgs = fmt.Sprintf("bestvideo[height<=?%s]+bestaudio/bestvideo[height<=?%s]/best[height<=?%s]/best", height, height, height)
 		}
-		args = []string{"-f", formatArgs, "-o", "-", "--no-warnings"}
+		args = []string{"-f", formatArgs, "-o", "-"}
 	}
+	args = append(args, getCommonArgs()...)
 	args = append(args, getCookiesArgs()...)
 	args = append(args, url)
 
 	cmd := exec.Command(exePath, args...)
 
     cmd.Stdout = writer
-    cmd.Stderr = os.Stderr // Pipe stderr to server logs for debugging
+    var stderr bytes.Buffer
+    cmd.Stderr = io.MultiWriter(os.Stderr, &stderr) // Keep logs and return message upstream
 
-    return cmd.Run()
+    if err := cmd.Run(); err != nil {
+        return fmt.Errorf("stream failed: %w\nOutput: %s", err, stderr.String())
+    }
+    return nil
 }
 
 // DownloadToPath downloads the video/audio to a specific file path
@@ -121,21 +138,54 @@ func DownloadToPath(url string, format string, quality string, outputPath string
 	var args []string
 	if format == "mp3" {
 		// Download best audio first to save bandwidth, then convert to mp3
-		args = []string{"-f", "bestaudio/best", "-x", "--audio-format", "mp3", "-o", outputPath, "--no-warnings"}
+		args = []string{"-f", "bestaudio/best", "-x", "--audio-format", "mp3", "-o", outputPath}
 	} else {
-		formatArgs := "bestvideo+bestaudio/best"
+		formatArgs := "bestvideo+bestaudio/bestvideo/best"
 		if quality != "" && quality != "best" {
 			height := strings.TrimSuffix(quality, "p")
-			formatArgs = fmt.Sprintf("bestvideo[height<=?%s]+bestaudio/best[height<=?%s]/best", height, height)
+			formatArgs = fmt.Sprintf("bestvideo[height<=?%s]+bestaudio/bestvideo[height<=?%s]/best[height<=?%s]/best", height, height, height)
 		}
-		args = []string{"-f", formatArgs, "-o", outputPath, "--no-warnings"}
+		args = []string{"-f", formatArgs, "-o", outputPath}
 	}
+	args = append(args, getCommonArgs()...)
 	args = append(args, getCookiesArgs()...)
 	args = append(args, url)
 
 	cmd := exec.Command(exePath, args...)
 
-    cmd.Stderr = os.Stderr
-    return cmd.Run()
+    var stderr bytes.Buffer
+    cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+    if err := cmd.Run(); err != nil {
+        return fmt.Errorf("download failed: %w\nOutput: %s", err, stderr.String())
+    }
+    return nil
+}
+
+// ValidateStream checks whether yt-dlp can resolve requested formats before headers are sent.
+func ValidateStream(url string, format string, quality string) error {
+    exePath := getYTdlpPath()
+
+    var formatArgs string
+    if format == "mp3" {
+        formatArgs = "bestaudio[ext=m4a]/bestaudio/best"
+    } else {
+        formatArgs = "bestvideo+bestaudio/bestvideo/best"
+        if quality != "" && quality != "best" {
+            height := strings.TrimSuffix(quality, "p")
+            formatArgs = fmt.Sprintf("bestvideo[height<=?%s]+bestaudio/bestvideo[height<=?%s]/best[height<=?%s]/best", height, height, height)
+        }
+    }
+
+    args := []string{"-f", formatArgs, "--skip-download"}
+    args = append(args, getCommonArgs()...)
+    args = append(args, getCookiesArgs()...)
+    args = append(args, url)
+
+    cmd := exec.Command(exePath, args...)
+    output, err := cmd.CombinedOutput()
+    if err != nil {
+        return fmt.Errorf("preflight failed: %w\nCommand: %s %s\nOutput: %s", err, exePath, strings.Join(args, " "), string(output))
+    }
+    return nil
 }
 

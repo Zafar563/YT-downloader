@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/example/yt-downloader/internal/handlers"
@@ -13,10 +14,16 @@ import (
 
 func main() {
 	r := gin.Default()
+	// Trust only local reverse proxies by default; avoids "trusted all proxies" warning.
+	_ = r.SetTrustedProxies([]string{"127.0.0.1", "::1"})
 
-	// CORS Setup
+	// CORS Setup — origins can be overridden via CORS_ORIGINS env var (comma-separated)
+	corsOrigins := []string{"http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:3000"}
+	if envOrigins := os.Getenv("CORS_ORIGINS"); envOrigins != "" {
+		corsOrigins = strings.Split(envOrigins, ",")
+	}
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:3000"}, // Allow Vite frontend ports
+		AllowOrigins:     corsOrigins,
 		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		ExposeHeaders:    []string{"Content-Length"},

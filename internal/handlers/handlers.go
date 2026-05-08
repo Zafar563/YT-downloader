@@ -69,15 +69,16 @@ func StreamDownload(c *gin.Context) {
 		return
 	}
 
-	// For video, we can stream directly
+	// For video, stream directly — ValidateStream is skipped to avoid a
+	// redundant second round-trip to YouTube before streaming begins.
 	filename := fmt.Sprintf("%s.mp4", title)
 	filename = filepath.Base(filename)
 
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Header("Content-Type", "video/mp4")
 
-	err := downloader.StreamVideo(url, format, quality, c.Writer)
-	if err != nil {
+	if err := downloader.StreamVideo(url, format, quality, c.Writer); err != nil {
+		// Headers already sent — we can only log the error at this point
 		fmt.Println("Streaming error:", err)
 	}
 }

@@ -12,13 +12,25 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     python3 \
     python3-pip \
+    python3-venv \
     curl \
     ca-certificates \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp
-# Update to latest nightly to ensure newest extractor fixes are present
-RUN /usr/local/bin/yt-dlp --update-to nightly
+
+# Install deno (recommended JS runtime for yt-dlp EJS challenge solving)
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
+# Verify deno is available
+RUN deno --version
+
+# Install yt-dlp with default dependencies — use --pre to get the latest pre-release
+# (nightly) which includes the newest extractor fixes without needing --update-to
+RUN pip install --break-system-packages --pre -U "yt-dlp[default]"
+
+# Create yt-dlp config to enable deno JS runtime by default
+RUN mkdir -p /etc/yt-dlp && \
+    echo "--js-runtimes deno" > /etc/yt-dlp/config
+
 COPY --from=backend-builder /app/yt-downloader .
 RUN mkdir -p downloads && chmod 777 downloads
 EXPOSE 8080
