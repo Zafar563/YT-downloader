@@ -3,14 +3,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    ports:
-      - "8080:8080"
+    # Backend port is exposed to the Docker network but not mapped directly to the host
+    expose:
+      - "8080"
     volumes:
       - ./downloads:/app/downloads
       - ./cookies.txt:/app/cookies.txt
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174,http://localhost:3000}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - GIN_MODE=release
     restart: unless-stopped
 
   frontend:
@@ -18,9 +20,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:8080/api}
+      - "${PORT:-80}:80"
     depends_on:
       - backend
     restart: unless-stopped

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import axios from 'axios';
 import './index.css';
 
-const API_BASE = 'http://localhost:8080/api';
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 function App() {
   const [url, setUrl] = useState('');
