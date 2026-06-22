@@ -96,18 +96,18 @@ function App() {
   return (
     <div className="container">
       <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>YT Downloader</h1>
+        <h1>YT & IG Downloader</h1>
       </header>
 
       <div className="input-group">
         <input
           type="text"
-          placeholder="Paste YouTube Playlist or Video URL"
+          placeholder="YouTube yoki Instagram havolasini joylashtiring..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
         <button onClick={fetchPlaylist} disabled={loading}>
-          {loading ? 'Fetching...' : 'Fetch'}
+          {loading ? 'Yuklanmoqda...' : 'Yuklash'}
         </button>
       </div>
 

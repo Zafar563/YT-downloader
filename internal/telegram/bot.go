@@ -42,14 +42,16 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message) {
 	if msg.IsCommand() {
 		switch msg.Command() {
 		case "start":
-			reply := tgbotapi.NewMessage(msg.Chat.ID, "Assalomu alaykum! YouTube havolasini yuboring va men uni yuklab beraman.")
+			reply := tgbotapi.NewMessage(msg.Chat.ID, "Assalomu alaykum! YouTube yoki Instagram havolasini yuboring va men uni yuklab beraman.")
 			b.api.Send(reply)
 		}
 		return
 	}
 
 	url := strings.TrimSpace(msg.Text)
-	if !strings.Contains(url, "youtube.com") && !strings.Contains(url, "youtu.be") {
+	isYouTube := strings.Contains(url, "youtube.com") || strings.Contains(url, "youtu.be")
+	isInstagram := strings.Contains(url, "instagram.com") || strings.Contains(url, "ddinstagram.com")
+	if !isYouTube && !isInstagram {
 		return
 	}
 
@@ -73,14 +75,14 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message) {
 	video := playlist.Entries[0]
 	text := fmt.Sprintf("Nomi: %s\nDavomiyligi: %.0f soniya\n\nQaysi formatda yuklamoqchisiz?", video.Title, video.Duration)
 
-	// Callback data: format|quality|url|title
-	// Telegram callback data has a limit of 64 bytes. We need to be careful.
-	// We'll store the URL and Title in a map or just send the ID.
-	// For now, let's just send format and a shortened URL if possible, or use a simpler approach.
-	// Actually, let's just use the video ID.
-	
-	mp4Data := fmt.Sprintf("mp4|best|%s", video.ID)
-	mp3Data := fmt.Sprintf("mp3|best|%s", video.ID)
+	// Callback data: format|quality|source_id
+	// Telegram callback data has a limit of 64 bytes. We prepend 'yt:' or 'ig:' to identify the platform.
+	prefix := "yt:"
+	if isInstagram {
+		prefix = "ig:"
+	}
+	mp4Data := fmt.Sprintf("mp4|best|%s%s", prefix, video.ID)
+	mp3Data := fmt.Sprintf("mp3|best|%s%s", prefix, video.ID)
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -103,7 +105,21 @@ func (b *Bot) handleCallback(query *tgbotapi.CallbackQuery) {
 	format := data[0]
 	quality := data[1]
 	videoID := data[2]
-	url := fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
+
+	var url string
+	if strings.HasPrefix(videoID, "ig:") {
+		shortcode := strings.TrimPrefix(videoID, "ig:")
+		url = fmt.Sprintf("https://www.instagram.com/p/%s/", shortcode)
+	} else if strings.HasPrefix(videoID, "yt:") {
+		ytID := strings.TrimPrefix(videoID, "yt:")
+		url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", ytID)
+	} else {
+		// Backwards compatibility for old buttons
+		url = fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID)
+	}
+
+	// Safe ID for output filename
+	safeID := strings.ReplaceAll(videoID, ":", "_")
 
 	// Answer callback to remove loading state
 	b.api.Send(tgbotapi.NewCallback(query.ID, "Yuklab olish boshlandi..."))
@@ -119,7 +135,7 @@ func (b *Bot) handleCallback(query *tgbotapi.CallbackQuery) {
 	if format == "mp3" {
 		ext = "mp3"
 	}
-	outputPath := filepath.Join(tempDir, fmt.Sprintf("%s_%s.%s", videoID, format, ext))
+	outputPath := filepath.Join(tempDir, fmt.Sprintf("%s_%s.%s", safeID, format, ext))
 
 	// Notify user
 	msg := tgbotapi.NewMessage(query.Message.Chat.ID, "Fayl tayyorlanmoqda, iltimos kuting...")
