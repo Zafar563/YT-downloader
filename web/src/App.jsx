@@ -102,12 +102,12 @@ function App() {
       <div className="input-group">
         <input
           type="text"
-          placeholder="YouTube yoki Instagram havolasini joylashtiring..."
+          placeholder="Paste YouTube or Instagram link..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
         />
         <button onClick={fetchPlaylist} disabled={loading}>
-          {loading ? 'Yuklanmoqda...' : 'Yuklash'}
+          {loading ? 'Fetching...' : 'Fetch'}
         </button>
       </div>
 
