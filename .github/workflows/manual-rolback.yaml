@@ -29,7 +29,7 @@ jobs:
           
           # Delete the release from GitHub
           gh release delete $LATEST_RELEASE --yes
-          
+           
           # Delete the tag locally and from the remote repository
           git tag -d $LATEST_RELEASE
           git push --delete origin $LATEST_RELEASE
