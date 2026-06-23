@@ -3,7 +3,7 @@ name: Deploy to VPS Server
 on:
   push:
     branches:
-      - main  # Kodlaringizni 'main' branchiga yuborganingizda avtomatik ishga tushadi
+      - main  
 
 jobs:
   deploy:
