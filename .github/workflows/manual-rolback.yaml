@@ -6,14 +6,32 @@ on:
 jobs:
   rollback:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Use Manual Rollback Action
-      uses: raiyanyahya/rollback@master
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Delete latest release and rollback tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Fetch the tag name of the most recent release
+          LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
+          
+          if [ -z "$LATEST_RELEASE" ]; then
+            echo "Error: No releases found in this repository!"
+            exit 1
+          fi
+          
+          echo "Processing rollback: Deleting release and tag '$LATEST_RELEASE'..."
+          
+          # Delete the release from GitHub
+          gh release delete $LATEST_RELEASE --yes
+          
+          # Delete the tag locally and from the remote repository
+          git tag -d $LATEST_RELEASE
+          git push --delete origin $LATEST_RELEASE
+          
+          echo "Rollback completed successfully."
