@@ -96,7 +96,7 @@ function App() {
   return (
     <div className="container">
       <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>YT & IG Downloader</h1>
+        <h1>YT & Instagramm Downloader</h1>
       </header>
 
       <div className="input-group">
