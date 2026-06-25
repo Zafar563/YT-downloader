@@ -19,7 +19,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Eng oxirgi release tag nomini olish
           LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
           
           if [ -z "$LATEST_RELEASE" ] || [ "$LATEST_RELEASE" = "null" ]; then
@@ -29,13 +28,10 @@ jobs:
           
           echo "Processing rollback: Deleting release and tag '$LATEST_RELEASE'..."
           
-          # GitHub'dan release'ni o'chirish
           gh release delete "$LATEST_RELEASE" --yes
            
-          # Mahalliy tagni o'chirish (agar mavjud bo'lsa, bo'lmasa || true o'tkazib yuboradi)
           git tag -d "$LATEST_RELEASE" || true
           
-          # GitHub'dagi remote tagni o'chirish (agar gh release o'chirib ulgurmagan bo'lsa)
           git push origin --delete "$LATEST_RELEASE" || true
           
           echo "Rollback completed successfully."
