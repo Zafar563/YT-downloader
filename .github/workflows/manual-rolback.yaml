@@ -12,26 +12,30 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Barcha tarix va teglarni yuklab olish (local xatolikni oldini oladi)
 
       - name: Delete latest release and rollback tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Fetch the tag name of the most recent release
+          # Eng oxirgi release tag nomini olish
           LATEST_RELEASE=$(gh release list --limit 1 --json tagName --jq '.[0].tagName')
           
-          if [ -z "$LATEST_RELEASE" ]; then
+          if [ -z "$LATEST_RELEASE" ] || [ "$LATEST_RELEASE" = "null" ]; then
             echo "Error: No releases found in this repository!"
             exit 1
           fi
           
           echo "Processing rollback: Deleting release and tag '$LATEST_RELEASE'..."
           
-          # Delete the release from GitHub
-          gh release delete $LATEST_RELEASE --yes
+          # GitHub'dan release'ni o'chirish
+          gh release delete "$LATEST_RELEASE" --yes
            
-          # Delete the tag locally and from the remote repository
-          git tag -d $LATEST_RELEASE
-          git push --delete origin $LATEST_RELEASE
+          # Mahalliy tagni o'chirish (agar mavjud bo'lsa, bo'lmasa || true o'tkazib yuboradi)
+          git tag -d "$LATEST_RELEASE" || true
+          
+          # GitHub'dagi remote tagni o'chirish (agar gh release o'chirib ulgurmagan bo'lsa)
+          git push origin --delete "$LATEST_RELEASE" || true
           
           echo "Rollback completed successfully."
