@@ -28,6 +28,7 @@ jobs:
           
           echo "Processing rollback: Deleting release and tag '$LATEST_RELEASE'..."
           
+          # GitHub'dan release'ni o'chirish
           gh release delete "$LATEST_RELEASE" --yes
            
           git tag -d "$LATEST_RELEASE" || true
