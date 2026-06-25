@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS user_downloads;
+DROP TABLE IF EXISTS users;
