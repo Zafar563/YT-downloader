@@ -1,26 +1,30 @@
 package telegram
 
 import (
+	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/example/yt-downloader/internal/db"
 	"github.com/example/yt-downloader/internal/downloader"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 type Bot struct {
 	api *tgbotapi.BotAPI
+	db  *sql.DB
 }
 
-func NewBot(token string) (*Bot, error) {
+func NewBot(token string, database *sql.DB) (*Bot, error) {
 	api, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Bot{api: api}, nil
+	return &Bot{api: api, db: database}, nil
 }
 
 func (b *Bot) Start() {
@@ -39,6 +43,13 @@ func (b *Bot) Start() {
 }
 
 func (b *Bot) handleMessage(msg *tgbotapi.Message) {
+	if msg.From != nil {
+		err := db.UpsertUser(b.db, msg.From.ID, msg.From.FirstName, msg.From.LastName, msg.From.UserName, msg.From.LanguageCode, msg.From.IsBot)
+		if err != nil {
+			log.Printf("Failed to upsert user in database: %v", err)
+		}
+	}
+
 	if msg.IsCommand() {
 		switch msg.Command() {
 		case "start":
@@ -120,6 +131,22 @@ func (b *Bot) handleCallback(query *tgbotapi.CallbackQuery) {
 
 	// Safe ID for output filename
 	safeID := strings.ReplaceAll(videoID, ":", "_")
+
+	platform := "youtube"
+	if strings.HasPrefix(videoID, "ig:") {
+		platform = "instagram"
+	}
+
+	if query.From != nil {
+		err := db.UpsertUser(b.db, query.From.ID, query.From.FirstName, query.From.LastName, query.From.UserName, query.From.LanguageCode, query.From.IsBot)
+		if err != nil {
+			log.Printf("Failed to upsert user on callback: %v", err)
+		}
+		err = db.LogDownload(b.db, query.From.ID, platform, url, format)
+		if err != nil {
+			log.Printf("Failed to log download on callback: %v", err)
+		}
+	}
 
 	// Answer callback to remove loading state
 	b.api.Send(tgbotapi.NewCallback(query.ID, "Yuklab olish boshlandi..."))

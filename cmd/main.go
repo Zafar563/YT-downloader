@@ -6,13 +6,48 @@ import (
 	"strings"
 	"time"
 
+	"github.com/example/yt-downloader/internal/db"
 	"github.com/example/yt-downloader/internal/handlers"
+	"github.com/example/yt-downloader/internal/middleware"
 	"github.com/example/yt-downloader/internal/telegram"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// Database connection setup
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		dbHost = "localhost"
+	}
+	dbPort := os.Getenv("DB_PORT")
+	if dbPort == "" {
+		dbPort = "5432"
+	}
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		dbUser = "postgres"
+	}
+	dbPassword := os.Getenv("DB_PASSWORD")
+	if dbPassword == "" {
+		dbPassword = "postgres"
+	}
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		dbName = "yt_downloader"
+	}
+
+	database, err := db.Connect(dbHost, dbPort, dbUser, dbPassword, dbName)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer database.Close()
+
+	// Execute migrations
+	if err := db.RunMigrations(database); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
+	}
+
 	r := gin.Default()
 	// Trust only local reverse proxies by default; avoids "trusted all proxies" warning.
 	_ = r.SetTrustedProxies([]string{"127.0.0.1", "::1"})
@@ -24,23 +59,41 @@ func main() {
 	}
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     corsOrigins,
-		AllowMethods:     []string{"GET", "POST", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type"},
+		AllowMethods:     []string{"GET", "POST", "OPTIONS", "PUT"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
+	authHandler := handlers.NewAuthHandler(database)
+
 	api := r.Group("/api")
 	{
 		api.POST("/playlist/info", handlers.GetPlaylist)
 		api.GET("/stream", handlers.StreamDownload) // Direct streaming endpoint
+
+		// Auth & Profile Routes
+		auth := api.Group("/auth")
+		{
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.Login)
+
+			// Authenticated Routes
+			authenticated := auth.Group("")
+			authenticated.Use(middleware.AuthMiddleware())
+			{
+				authenticated.GET("/profile", authHandler.GetProfile)
+				authenticated.PUT("/profile", authHandler.UpdateProfile)
+				authenticated.POST("/download", authHandler.LogDownload)
+			}
+		}
 	}
 
 	// Telegram Bot Setup
 	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if botToken != "" {
-		bot, err := telegram.NewBot(botToken)
+		bot, err := telegram.NewBot(botToken, database)
 		if err != nil {
 			log.Printf("Failed to initialize Telegram bot: %v", err)
 		} else {
