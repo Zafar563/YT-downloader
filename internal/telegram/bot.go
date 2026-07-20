@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/example/yt-downloader/internal/db"
 	"github.com/example/yt-downloader/internal/downloader"
@@ -14,8 +15,9 @@ import (
 )
 
 type Bot struct {
-	api *tgbotapi.BotAPI
-	db  *sql.DB
+	api     *tgbotapi.BotAPI
+	db      *sql.DB
+	limiter *BotLimiter
 }
 
 func NewBot(token string, database *sql.DB) (*Bot, error) {
@@ -24,7 +26,11 @@ func NewBot(token string, database *sql.DB) (*Bot, error) {
 		return nil, err
 	}
 
-	return &Bot{api: api, db: database}, nil
+	return &Bot{
+		api:     api,
+		db:      database,
+		limiter: NewBotLimiter(),
+	}, nil
 }
 
 func (b *Bot) Start() {
@@ -44,6 +50,13 @@ func (b *Bot) Start() {
 
 func (b *Bot) handleMessage(msg *tgbotapi.Message) {
 	if msg.From != nil {
+		// Rate limit: 3 requests per minute
+		if !b.limiter.Allow(msg.From.ID, 3, 1*time.Minute) {
+			reply := tgbotapi.NewMessage(msg.Chat.ID, "So'rovlar soni ko'payib ketdi. Iltimos, birozdan keyin qaytadan urining (Limit: daqiqasiga 3 ta so'rov).")
+			b.api.Send(reply)
+			return
+		}
+
 		err := db.UpsertUser(b.db, msg.From.ID, msg.From.FirstName, msg.From.LastName, msg.From.UserName, msg.From.LanguageCode, msg.From.IsBot)
 		if err != nil {
 			log.Printf("Failed to upsert user in database: %v", err)
@@ -108,6 +121,16 @@ func (b *Bot) handleMessage(msg *tgbotapi.Message) {
 }
 
 func (b *Bot) handleCallback(query *tgbotapi.CallbackQuery) {
+	if query.From != nil {
+		// Rate limit: 3 requests per minute
+		if !b.limiter.Allow(query.From.ID, 3, 1*time.Minute) {
+			b.api.Send(tgbotapi.NewCallback(query.ID, "So'rov cheklovi! Iltimos kuting."))
+			reply := tgbotapi.NewMessage(query.Message.Chat.ID, "So'rovlar soni ko'payib ketdi. Iltimos, birozdan keyin qaytadan urining (Limit: daqiqasiga 3 ta so'rov).")
+			b.api.Send(reply)
+			return
+		}
+	}
+
 	data := strings.Split(query.Data, "|")
 	if len(data) < 3 {
 		return

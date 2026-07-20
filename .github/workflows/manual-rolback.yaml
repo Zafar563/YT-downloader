@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Barcha tarix va teglarni yuklab olish (local xatolikni oldini oladi)
+          fetch-depth: 0 
 
       - name: Delete latest release and rollback tag
         env:
@@ -28,7 +28,6 @@ jobs:
           
           echo "Processing rollback: Deleting release and tag '$LATEST_RELEASE'..."
           
-          # GitHub'dan release'ni o'chirish
           gh release delete "$LATEST_RELEASE" --yes
            
           git tag -d "$LATEST_RELEASE" || true

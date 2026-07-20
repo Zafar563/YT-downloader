@@ -12,6 +12,7 @@ import (
 	"github.com/example/yt-downloader/internal/telegram"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -66,15 +67,27 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// Initialize Rate Limiters
+	// 1. Core API (Playlist Fetching & Video Streaming) - 5 requests per minute (limit=5/60, burst=5)
+	apiLimiter := middleware.NewIPRateLimiter(rate.Limit(5.0/60.0), 5)
+	// 2. Auth API (Login/Register attempts) - 10 requests per minute (limit=10/60, burst=10)
+	authLimiter := middleware.NewIPRateLimiter(rate.Limit(10.0/60.0), 10)
+
 	authHandler := handlers.NewAuthHandler(database)
 
 	api := r.Group("/api")
 	{
-		api.POST("/playlist/info", handlers.GetPlaylist)
-		api.GET("/stream", handlers.StreamDownload) // Direct streaming endpoint
+		// Apply IP-based rate limiting to heavy download/info endpoints
+		coreAPI := api.Group("")
+		coreAPI.Use(middleware.RateLimitMiddleware(apiLimiter))
+		{
+			coreAPI.POST("/playlist/info", handlers.GetPlaylist)
+			coreAPI.GET("/stream", handlers.StreamDownload) // Direct streaming endpoint
+		}
 
 		// Auth & Profile Routes
 		auth := api.Group("/auth")
+		auth.Use(middleware.RateLimitMiddleware(authLimiter))
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
